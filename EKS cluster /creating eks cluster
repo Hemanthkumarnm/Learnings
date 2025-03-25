@@ -1,0 +1,99 @@
+**EKS Cluster Setup Using Terraform and AWS CLI**
+
+### 1️⃣ **Setup AWS CLI and IAM Permissions**
+1. Install AWS CLI on your system if not already installed.
+2. Configure AWS credentials:
+   ```sh
+   aws configure
+   ```
+   Provide your **AWS Access Key, Secret Key, Region, and Output format**.
+3. Ensure your IAM role has the necessary policies attached:
+   - AmazonEKSClusterPolicy
+   - AmazonEKSWorkerNodePolicy
+   - AmazonEC2ContainerRegistryReadOnly
+   - AmazonVPCFullAccess
+
+### 2️⃣ **Create a VPC for EKS**
+1. Create a VPC with **private and public subnets**.
+2. Enable **Internet Gateway (IGW)** for public subnets.
+3. Attach **NAT Gateway** for private subnets.
+
+> **Note:** You can use AWS CloudFormation or Terraform to automate this process.
+
+### 3️⃣ **Provision EKS Cluster Using Terraform**
+1. Initialize a Terraform project and create a **main.tf** file.
+2. Define the EKS cluster module:
+   ```hcl
+   module "eks" {
+     source          = "terraform-aws-modules/eks/aws"
+     cluster_name    = "eks-forest"
+     cluster_version = "1.32"
+     subnets         = ["subnet-abc123", "subnet-def456"]
+     vpc_id          = "vpc-xyz789"
+   }
+   ```
+3. Run Terraform commands:
+   ```sh
+   terraform init
+   terraform plan
+   terraform apply -auto-approve
+   ```
+
+### 4️⃣ **Verify EKS Cluster**
+1. Use AWS CLI to verify the cluster:
+   ```sh
+   aws eks list-clusters --region ap-south-1
+   ```
+2. Fetch cluster details:
+   ```sh
+   aws eks describe-cluster --name eks-forest --region ap-south-1 --query "cluster.status"
+   ```
+
+### 5️⃣ **Configure `kubectl` to Access EKS**
+1. Update your kubeconfig:
+   ```sh
+   aws eks update-kubeconfig --region ap-south-1 --name eks-forest
+   ```
+2. Verify connection:
+   ```sh
+   kubectl get nodes
+   ```
+
+### 6️⃣ **Create a Node Group**
+1. Create a node group for worker nodes using Terraform or AWS CLI.
+2. Using AWS CLI:
+   ```sh
+   aws eks create-nodegroup \
+     --cluster-name eks-forest \
+     --nodegroup-name cost-effective-node-group \
+     --subnets subnet-abc123 subnet-def456 \
+     --instance-types t3.medium \
+     --scaling-config minSize=1,maxSize=3,desiredSize=2
+   ```
+3. Verify the node group:
+   ```sh
+   aws eks describe-nodegroup --cluster-name eks-forest --nodegroup-name cost-effective-node-group --region ap-south-1 --query 'nodegroup.status'
+   ```
+
+### 7️⃣ **Deploy a Test Application (Optional)**
+1. Deploy an **nginx** test pod:
+   ```sh
+   kubectl run nginx --image=nginx --port=80
+   ```
+2. Expose it via a LoadBalancer:
+   ```sh
+   kubectl expose pod nginx --type=LoadBalancer --port=80
+   ```
+3. Get the external IP:
+   ```sh
+   kubectl get svc nginx
+   ```
+
+---
+
+✅ **EKS Cluster is Now Set Up and Ready for Deployments!** 🚀
+
+---
+
+Let me know if you need **modifications or additional details**!
+
