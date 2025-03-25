@@ -1,0 +1,90 @@
+**# ArgoCD Deployment on EC2 and Connection to EKS Cluster**
+
+## ✅ Step 1: Launch an EC2 Instance for ArgoCD
+- Use **Ubuntu** or **Amazon Linux 2**
+- Recommended instance type: **t3.medium**
+- Attach an IAM Role with these permissions:
+  - `AmazonEKSClusterPolicy`
+  - `AmazonEKSWorkerNodePolicy`
+  - `AmazonEC2ContainerRegistryReadOnly`
+  - `AmazonS3ReadOnlyAccess` (optional for backups)
+
+## ✅ Step 2: Install Required Tools on EC2
+```bash
+sudo apt update -y
+sudo apt install -y awscli curl unzip jq
+```
+### Install kubectl
+```bash
+curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+kubectl version --client
+```
+
+### Install Helm
+```bash
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+helm version
+```
+
+### Install ArgoCD CLI
+```bash
+curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+chmod +x /usr/local/bin/argocd
+argocd version --client
+```
+
+## ✅ Step 3: Connect to EKS Cluster
+```bash
+aws eks update-kubeconfig --region <region> --name <eks-cluster-name>
+kubectl get nodes
+```
+Ensure nodes are in **Ready** status.
+
+## ✅ Step 4: Deploy ArgoCD on Kubernetes
+### Add ArgoCD Helm Repository
+```bash
+helm repo add argo https://argoproj.github.io/argo-helm
+helm repo update
+```
+
+### Install ArgoCD using Helm
+```bash
+helm install argocd argo/argo-cd --namespace argocd --create-namespace
+```
+
+## ✅ Step 5: Verify ArgoCD Installation
+```bash
+kubectl get pods -n argocd
+```
+Ensure all pods are in **Running** state.
+
+## ✅ Step 6: Expose ArgoCD UI via LoadBalancer
+```bash
+kubectl get svc -n argocd
+```
+Find the `argocd-server` service and note the **EXTERNAL-IP**.
+
+## ✅ Step 7: Access ArgoCD UI
+- Open your browser and go to:
+  ```
+  http://<EXTERNAL-IP>
+  or
+  https://<EXTERNAL-IP>
+  ```
+
+## ✅ Step 8: Login to ArgoCD
+- Get the default **admin password**:
+```bash
+kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath="{.data.password}" | base64 -d
+```
+- Use **`admin`** as the username and the retrieved password.
+
+## ✅ Step 9: Change the Default Password
+```bash
+argocd login <EXTERNAL-IP>
+argocd account update-password
+```
+
+Now, ArgoCD is ready to deploy applications! 🚀
+
