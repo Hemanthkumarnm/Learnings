@@ -1,0 +1,118 @@
+PostgreSQL Installation and Setup on Ubuntu
+1. Update System Packages
+Before installing PostgreSQL, ensure that your system's package index is up to date:
+
+
+sudo apt update
+2. Install PostgreSQL
+To install PostgreSQL 15, run the following command:
+
+
+sudo apt install postgresql-15 postgresql-contrib-15
+This will install PostgreSQL along with additional contributed utilities.
+
+3. Check PostgreSQL Service Status
+Once the installation is complete, verify that the PostgreSQL service is active:
+
+
+sudo systemctl status postgresql
+To start the PostgreSQL service if it's not running:
+
+
+sudo systemctl start postgresql
+You can also enable PostgreSQL to start automatically on system boot:
+
+
+sudo systemctl enable postgresql
+4. Access PostgreSQL Command Line
+Log in to PostgreSQL as the postgres superuser:
+
+
+sudo -i -u postgres
+psql
+This opens the PostgreSQL shell where you can run SQL commands.
+
+5. Create Database and User
+5.1 Create a New Database
+To create a new database called filtrex_dev, use the following SQL command:
+
+
+CREATE DATABASE filtrex_dev;
+5.2 Create a New User
+To create a user named filtrex_dev with a password:
+
+
+CREATE USER filtrex_dev WITH PASSWORD 'yourpassword';
+5.3 Grant Privileges to the User
+Grant the new user full access to the filtrex_dev database:
+
+
+GRANT ALL PRIVILEGES ON DATABASE filtrex_dev TO filtrex_dev;
+5.4 Exit PostgreSQL
+Once the database and user are created, exit the PostgreSQL shell:
+
+
+\q
+6. Test the Database and User
+To verify that the user and database are working correctly, log in to the filtrex_dev database as the filtrex_dev user:
+
+
+psql -U filtrex_dev -d filtrex_dev -W
+You'll be prompted for the password (yourpassword). Once logged in, you can verify by listing the tables:
+
+
+\dt
+7. Allow Remote Connections (Optional)
+If you want to allow remote connections to PostgreSQL, follow these steps:
+
+7.1 Edit postgresql.conf
+Open the PostgreSQL configuration file:
+
+
+sudo nano /etc/postgresql/15/main/postgresql.conf
+Find the listen_addresses setting and change it from localhost to * to allow connections from any IP address:
+
+
+listen_addresses = '*'
+7.2 Edit pg_hba.conf
+Now, open the pg_hba.conf file:
+
+
+sudo nano /etc/postgresql/15/main/pg_hba.conf
+Add the following line to allow connections from any IP address:
+
+
+host    all             all             0.0.0.0/0            md5
+7.3 Restart PostgreSQL
+To apply these changes, restart PostgreSQL:
+
+
+sudo systemctl restart postgresql
+7.4 Open Firewall Port (if applicable)
+If you're using a cloud service like AWS EC2, make sure port 5432 (the default PostgreSQL port) is open in your security group or firewall settings.
+
+8. Backup and Restore (Optional)
+8.1 Backup a Database
+You can back up a database using pg_dump. For example, to back up filtrex_dev:
+
+
+pg_dump filtrex_dev > filtrex_dev_backup.sql
+8.2 Restore a Database
+To restore a database from a backup file:
+
+psql filtrex_dev < filtrex_dev_backup.sql
+9. PostgreSQL Logs (if needed)
+To check the logs in case of issues, PostgreSQL logs are typically found in:
+
+
+/var/log/postgresql/postgresql-15-main.log
+You can view them using:
+
+
+sudo tail -f /var/log/postgresql/postgresql-15-main.log
+Conclusion
+This guide has helped you install PostgreSQL 15, create a user and database, and configure it for remote access. Keep this documentation handy for future reference, and feel free to modify or extend it as needed!
+
+Let me know if you need further adjustments or additions to this documentation!
+
+
