@@ -1,0 +1,195 @@
+# Rundeck Installation and Configuration on Ubuntu
+
+This guide covers the step-by-step installation and configuration of Rundeck on an **Ubuntu EC2 instance**, including setting up **MariaDB** as the database and configuring a **cron job** on another EC2 machine.
+
+---
+
+## **1. Install Required Dependencies**
+
+```sh
+sudo apt update -y
+sudo apt install -y openjdk-11-jre-headless curl gnupg
+```
+
+## **2. Install MariaDB**
+
+```sh
+sudo apt install -y mariadb-server
+```
+
+### **Secure MariaDB**
+
+```sh
+sudo mysql_secure_installation
+```
+
+Follow the prompts to **set a root password** and apply recommended security settings.
+
+### **Create a Database for Rundeck**
+
+```sh
+sudo mysql -u root -p
+```
+
+Inside the MariaDB shell, run:
+
+```sql
+CREATE DATABASE rundeckdb;
+CREATE USER 'rundeckuser'@'localhost' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON rundeckdb.* TO 'rundeckuser'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+---
+
+## **3. Install Rundeck**
+
+### **Import the Rundeck Repository Key**
+
+```sh
+curl -fsSL https://packages.rundeck.com/pagerduty/rundeck/gpgkey | sudo tee /usr/share/keyrings/rundeck-key.asc > /dev/null
+```
+
+### **Add the Rundeck Repository**
+
+```sh
+echo "deb [signed-by=/usr/share/keyrings/rundeck-key.asc] https://packages.rundeck.com/pagerduty/rundeckpro/any/ any main" | sudo tee /etc/apt/sources.list.d/rundeck.list
+```
+
+### **Install Rundeck**
+
+```sh
+sudo apt update
+sudo apt install -y rundeckpro-enterprise
+```
+
+---
+
+## **4. Configure Rundeck to Use MariaDB**
+
+Edit the Rundeck configuration file:
+
+```sh
+sudo nano /etc/rundeck/rundeck-config.properties
+```
+
+Replace the default **H2 database** configuration with **MariaDB**:
+
+```properties
+grails.serverURL=http://localhost:4440
+rundeck.database.url=jdbc:mysql://localhost:3306/rundeckdb?autoReconnect=true&useSSL=false
+rundeck.database.driverClassName=com.mysql.cj.jdbc.Driver
+rundeck.database.username=rundeckuser
+rundeck.database.password=your_password
+rundeck.database.dialect=org.hibernate.dialect.MySQL8Dialect
+```
+
+Save and exit (`CTRL+X`, `Y`, `Enter`).
+
+Restart Rundeck to apply the changes:
+
+```sh
+sudo systemctl restart rundeckd
+```
+
+---
+
+## **5. Start Rundeck**
+
+```sh
+sudo systemctl enable rundeckd
+sudo systemctl start rundeckd
+```
+
+### **Check Service Status**
+
+```sh
+sudo systemctl status rundeckd
+```
+
+### **Check Logs for Errors**
+
+```sh
+tail -f /var/log/rundeck/service.log
+```
+
+---
+
+## **6. Open Rundeck Web Interface**
+
+1. Open a browser and go to:  
+   **http://YOUR_EC2_PUBLIC_IP:4440**
+2. Login with default credentials:  
+   - **Username:** `admin`
+   - **Password:** `admin`
+
+_(You should change the default password after logging in.)_
+
+---
+
+## **7. Set Up a Cron Job on Another EC2 Machine**
+
+1. **SSH into the target EC2 instance**
+
+   ```sh
+   ssh -i your-key.pem ubuntu@TARGET_EC2_IP
+   ```
+
+2. **Create a script to be executed by Rundeck**
+
+   ```sh
+   nano /home/ubuntu/sample-script.sh
+   ```
+
+   Add the following content:
+
+   ```sh
+   #!/bin/bash
+   echo "Hello from Rundeck!" >> /home/ubuntu/rundeck-output.txt
+   ```
+
+   Save and exit (`CTRL+X`, `Y`, `Enter`).
+
+3. **Make the script executable**
+
+   ```sh
+   chmod +x /home/ubuntu/sample-script.sh
+   ```
+
+4. **Schedule the script using Cron**
+
+   ```sh
+   crontab -e
+   ```
+
+   Add the following line to run the script every minute:
+
+   ```sh
+   * * * * * /home/ubuntu/sample-script.sh
+   ```
+
+   Save and exit (`CTRL+X`, `Y`, `Enter`).
+
+---
+
+## **8. Configure Rundeck Job to Run the Cron Job**
+
+1. **Go to Rundeck Dashboard**
+2. **Create a New Project**
+3. **Create a New Job**
+   - Name: `Remote EC2 Cron Job`
+   - Execution Type: `Command`
+   - Enter command:
+
+     ```sh
+     ssh -i /path/to/your-key.pem ubuntu@TARGET_EC2_IP "sh /home/ubuntu/sample-script.sh"
+     ```
+   - Save and **Run the Job**
+
+---
+
+## 🎉 **Done! Rundeck is Now Installed and Configured with MariaDB and a Remote Cron Job.**
+
+Let me know if you need any modifications or additional details! 🚀
+
