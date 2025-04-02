@@ -1,0 +1,76 @@
+ArgoCD User Management and RBAC Documentation
+1. Viewing ArgoCD RBAC Configurations
+To check the current RBAC configurations and roles for users:
+
+
+kubectl -n argocd get cm argocd-rbac-cm -o yaml
+2. Creating a User and Assigning Roles
+2.1 Adding a New User to a Role
+To add a new user alice to the role:dev-team, add the following line under the policy.csv section in argocd-rbac-cm:
+
+
+g, alice, role:dev-team
+2.2 Edit the argocd-rbac-cm ConfigMap:
+
+kubectl -n argocd edit cm argocd-rbac-cm
+Add the following line in the policy.csv section:
+
+
+g, alice, role:dev-team
+2.3 Restart the ArgoCD API Server:
+
+kubectl -n argocd rollout restart deployment argocd-server
+3. Deleting a User's Access
+3.1 Revoking Access for a User
+To revoke access for a user sabiha, remove the associated role in the argocd-rbac-cm ConfigMap.
+
+
+g, sabiha, role:readonly
+3.2 Edit the argocd-rbac-cm ConfigMap:
+
+kubectl -n argocd edit cm argocd-rbac-cm
+Remove the line for sabiha:
+
+
+g, sabiha, role:readonly
+3.3 Restart the ArgoCD API Server:
+
+kubectl -n argocd rollout restart deployment argocd-server
+4. Expanding RBAC Permissions
+4.1 Add a New Role with Specific Permissions
+To create a new role:admin with permissions to manage all applications and projects, add the following lines under policy.csv:
+
+
+p, role:admin, applications, *, */*, allow
+p, role:admin, projects, *, *, allow
+p, role:admin, logs, *, */*, allow
+4.2 Assign the New Role to a User
+To assign the new role:admin to a user alice:
+
+
+g, alice, role:admin
+5. Verify User Access
+5.1 Verify via Web UI
+Login to the ArgoCD Web UI with the user's credentials. Ensure they can or cannot access the appropriate applications, projects, etc.
+
+5.2 Verify via ArgoCD CLI
+Use the CLI to verify user access:
+
+
+argocd login <ARGOCD_SERVER> --username <username> --password <password>
+6. Backup and Restore RBAC Configurations
+6.1 Backup the RBAC ConfigMap
+To back up the RBAC configuration:
+
+
+kubectl -n argocd get cm argocd-rbac-cm -o yaml > argocd-rbac-cm-backup.yaml
+6.2 Restore the RBAC ConfigMap
+To restore the RBAC configuration from a backup:
+
+
+kubectl -n argocd apply -f argocd-rbac-cm-backup.yaml
+Conclusion
+This document provides the essential commands and steps to manage ArgoCD users, assign roles, revoke access, and expand permissions. Use this as a quick reference guide for managing user access in ArgoCD.
+Now you can easily copy and paste this into your notes! Let me know if you'd like more assistance.
+
+
