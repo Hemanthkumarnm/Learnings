@@ -1,0 +1,55 @@
+Add account to Argo CD via configmap
+
+    Get the configmap argocd-cm of Argo CD by executing the below command.
+
+kubectl get configmap argocd-cm -n argocd -o yaml > argocd-cm.yml
+
+2. Edit the configmap file argocd-cm.yml and add the below line under "data" with new account login enabled
+
+apiVersion: v1
+data:
+  accounts.devuser: login
+kind: ConfigMap
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+
+3. Apply the configmap by executing the below command . This will add a new account and allow that account to login via the Command Line Interface and Graphical User Interface.
+
+kubectl apply -f argocd-cm.yml -n argocd
+
+Add RBAC admin permission to user via configmap
+
+    Get the configmap argocd-rbac-cm of Argo CD by executing the below command.
+
+kubectl get configmap argocd-rbac-cm -n argocd -o yaml > argocd-rbac-cm.yml
+
+2 . In this case we are using the default policy as readonly cause we are creating only one user with readonly access for logging purposes. Argo CD does have a default user that is created when you install and set up the Argo CD application. The default username for this user is admin. This user is typically assigned full administrative privileges, allowing them to manage applications, sync with Git repositories, create and update configurations, and perform other administrative tasks within Argo CD.
+
+Edit the configmap file argocd-rbac-cm.yml and add the below section under “data” for the readonly user “devuser”
+
+apiVersion: v1
+data:
+  policy.csv: ""
+  policy.default: role:readonly
+kind: ConfigMap
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+
+3 . Apply the configmap by executing the below command. This will add readonly permission to user devuser
+
+kubectl apply -f argocd-rbac-cm.yml -n argocd
+
+Create password for new Argo CD account
+
+    Login into Argo CD as an admin account via Argo CLI by executing the below command.
+
+argocd login SERVERIP or HOSTNAME
+
+2. Create password to the new account by executing the below command. Password should contain at least one UPPERCASE.
+
+argocd account update-password --account john --new-password Argo486
+
+    Login as devuser ,he can’t create or edit any resources except view them
+
