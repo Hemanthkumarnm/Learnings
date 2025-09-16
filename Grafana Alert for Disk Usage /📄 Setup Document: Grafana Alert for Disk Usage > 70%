@@ -1,0 +1,42 @@
+# Disk Usage Cleanup Automation
+
+## Flow
+- Grafana monitors Debezium server disk usage via Prometheus.
+- Alert fires if usage > 70%.
+- Grafana sends webhook to Jenkins.
+- Jenkins job SSH → Debezium server → runs `docker volume prune -f`.
+
+## Setup Steps
+1. **Grafana Alert Rule**
+   - Query:  
+     ```promql
+     100 - ((node_filesystem_avail_bytes{mountpoint="/"} * 100) / node_filesystem_size_bytes{mountpoint="/"})
+     ```
+   - Condition: `IS ABOVE 70`.
+
+2. **Contact Point**
+   - Type: Webhook.  
+   - URL:  
+     ```
+     http://<jenkins-url>/generic-webhook-trigger/invoke?token=cleanup-token
+     ```
+
+3. **Jenkins Pipeline**
+   ```groovy
+   pipeline {
+       agent any
+       stages {
+           stage('Cleanup') {
+               steps {
+                   sshagent (credentials: ['debezium-ssh-key']) {
+                       sh '''
+                       ssh devops@<DEBEZIUM_SERVER_IP> "docker volume prune -f"
+                       '''
+                   }
+               }
+           }
+       }
+   }
+
+---
+
