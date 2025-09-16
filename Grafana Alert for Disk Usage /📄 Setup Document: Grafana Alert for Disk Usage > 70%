@@ -38,5 +38,8 @@
        }
    }
 
----
+--- 
+# check the server details in grafana explore 
+node_filesystem_avail_bytes
+
 
