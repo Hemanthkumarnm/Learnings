@@ -1,0 +1,28 @@
+✅ Goal
+
+Pull the latest code from remote branch assistantx-dev into your local assistantx-dev.
+
+Create a new branch assistantx-prod from assistantx-dev.
+
+Push assistantx-prod to remote.
+
+🔥 Commands
+1️⃣ Switch to your local dev branch
+>>git checkout assistantx-dev
+
+2️⃣ Pull the latest code from remote
+>>git pull origin assistantx-dev
+
+This ensures your local branch is fully up to date.
+
+3️⃣ Create a new branch from the updated assistantx-dev
+>>git checkout -b assistantx-prod
+
+4️⃣ Push the new branch to remote
+>>git push -u origin assistantx-prod
+
+✅ Final Result
+
+Local branch assistantx-dev is updated with the latest remote changes.
+New branch assistantx-prod is created from it.
+assistantx-prod is now pushed and available on the remote repository.
