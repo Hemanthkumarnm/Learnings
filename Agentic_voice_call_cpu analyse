@@ -1,0 +1,38 @@
+cpu measure during baseline 
+
+echo "===== BASELINE ====="
+echo "Memory (MiB): $(awk '{printf "%.2f", $1/1024/1024}' /sys/fs/cgroup/memory/memory.usage_in_bytes)"
+
+if [ -f /sys/fs/cgroup/cpuacct/cpuacct.usage ]; then
+  cpu1=$(cat /sys/fs/cgroup/cpuacct/cpuacct.usage)
+  sleep 5
+  cpu2=$(cat /sys/fs/cgroup/cpuacct/cpuacct.usage)
+  delta=$((cpu2 - cpu1))
+  echo "CPU cores used (avg over 5s): $(awk -v d=$delta 'BEGIN{printf "%.4f", (d/1e9)/5}')"
+else
+  cpu1=$(awk '/usage_usec/ {print $2}' /sys/fs/cgroup/cpu.stat)
+  sleep 5
+  cpu2=$(awk '/usage_usec/ {print $2}' /sys/fs/cgroup/cpu.stat)
+  delta=$((cpu2 - cpu1))
+  echo "CPU cores used (avg over 5s): $(awk -v d=$delta 'BEGIN{printf "%.4f", (d/1e6)/5}')"
+fi
+##############################################
+
+cpu measure during call 
+
+echo "===== DURING CALL ====="
+echo "Memory (MiB): $(awk '{printf "%.2f", $1/1024/1024}' /sys/fs/cgroup/memory/memory.usage_in_bytes)"
+
+if [ -f /sys/fs/cgroup/cpuacct/cpuacct.usage ]; then
+  cpu1=$(cat /sys/fs/cgroup/cpuacct/cpuacct.usage)
+  sleep 5
+  cpu2=$(cat /sys/fs/cgroup/cpuacct/cpuacct.usage)
+  delta=$((cpu2 - cpu1))
+  echo "CPU cores used (avg over 5s): $(awk -v d=$delta 'BEGIN{printf "%.4f", (d/1e9)/5}')"
+else
+  cpu1=$(awk '/usage_usec/ {print $2}' /sys/fs/cgroup/cpu.stat)
+  sleep 5
+  cpu2=$(awk '/usage_usec/ {print $2}' /sys/fs/cgroup/cpu.stat)
+  delta=$((cpu2 - cpu1))
+  echo "CPU cores used (avg over 5s): $(awk -v d=$delta 'BEGIN{printf "%.4f", (d/1e6)/5}')"
+fi
