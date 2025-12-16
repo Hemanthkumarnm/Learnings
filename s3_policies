@@ -1,0 +1,40 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:PutObject",
+                "s3:ListBucketMultipartUploads",
+                "s3:PutObjectRetention",
+                "s3:ListBucketVersions",
+                "s3:PutBucketCORS",
+                "s3:CreateJob",
+                "s3:ListMultipartUploadParts"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:ListBucket",
+                "s3:ListBucketMultipartUploads",
+                "s3:PutObjectRetention",
+                "s3:ListBucketVersions",
+                "s3:PutBucketCORS",
+                "s3:CreateJob",
+                "s3:ListMultipartUploadParts"
+            ],
+            "Resource": [
+                "arn:aws:s3:::datalake-central-hub",
+                "arn:aws:s3:::datalake-central-hub/*"
+            ]
+        }
+    ]
+}
