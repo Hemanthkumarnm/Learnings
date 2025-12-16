@@ -36,3 +36,17 @@ else
   delta=$((cpu2 - cpu1))
   echo "CPU cores used (avg over 5s): $(awk -v d=$delta 'BEGIN{printf "%.4f", (d/1e6)/5}')"
 fi
+
+############## production requirement ############
+
+Replicas: 2 pods
+
+Per pod resources:
+
+CPU request: 300m
+
+Memory request: 512 MB
+
+CPU limit: 1 vCPU
+
+Memory limit: 1 GB
