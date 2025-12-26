@@ -1,0 +1,174 @@
+# compile scripts go here, this is just sample not for real envirmnemntal use.
+#!/bin/bash
+set -xe
+IFS=,
+
+APPLICATION=erp-metax-data-sync-dev
+CURRENT_TIME=$(date "+%Y_%m_%d-%H_%M_%S")
+CURRENT_DATE=$(date "+%Y_%m_%d")
+BASE_PATH=/var/lib/jenkins/workspace/erp_preproduction/
+DEBEZIUM_USR=devops
+DEBEZIUM_HOST=
+GITHUB_TOKEN=g
+REPO_URL=
+
+######################### WELCOME TO DEBEZIUM SERVER ###############################
+whoami
+ssh -o StrictHostKeyChecking=no -q ${DEBEZIUM_USR}@${DEBEZIUM_HOST} <<'EOSSH'
+
+echo "=== STEP 1: Complete Cleanup ==="
+docker ps -a
+
+# Try to delete existing connector
+curl -i -X DELETE http://localhost:8083/connectors/stream1 2>/dev/null || echo "Connector not found"
+
+# Force stop ALL containers
+docker stop $(docker ps -aq) 2>/dev/null || echo "No containers to stop"
+docker rm $(docker ps -aq) 2>/dev/null || echo "No containers to remove"
+
+echo "=== STEP 2: Starting Zookeeper 3.0 ==="
+docker run -d --name zookeeper \
+  -p 2181:2181 -p 2888:2888 -p 3888:3888 \
+  quay.io/debezium/zookeeper:3.0
+
+echo "Waiting for Zookeeper to be ready..."
+sleep 20
+
+if ! docker ps | grep -q zookeeper; then
+  echo "❌ Zookeeper failed to start!"
+  docker logs zookeeper
+  exit 1
+fi
+
+docker logs zookeeper --tail 15
+echo "✅ Zookeeper is running"
+
+echo "=== STEP 3: Starting Kafka 3.0 ==="
+docker run -d --name kafka \
+  -p 9092:9092 \
+  -e ZOOKEEPER_CONNECT=zookeeper:2181 \
+  --link zookeeper:zookeeper \
+  quay.io/debezium/kafka:3.0
+
+echo "Waiting for Kafka to be ready..."
+sleep 30
+
+if ! docker ps | grep -q kafka; then
+  echo "❌ Kafka failed to start!"
+  docker logs kafka --tail 50
+  exit 1
+fi
+
+docker logs kafka --tail 20
+echo "✅ Kafka is running"
+
+echo "=== STEP 4: Starting Debezium Connect 3.0 ==="
+docker run -d --name connect \
+  -p 8083:8083 \
+  -e GROUP_ID=1 \
+  -e CONFIG_STORAGE_TOPIC=my_connect_configs \
+  -e OFFSET_STORAGE_TOPIC=my_connect_offsets \
+  -e STATUS_STORAGE_TOPIC=my_connect_statuses \
+  -e BOOTSTRAP_SERVERS=kafka:9092 \
+  --link kafka:kafka \
+  --link zookeeper:zookeeper \
+  quay.io/debezium/connect:3.0
+
+echo "Waiting for Connect to be ready..."
+sleep 20
+
+if ! docker ps | grep -q connect; then
+  echo "❌ Connect container is not running!"
+  docker logs connect --tail 50
+  exit 1
+fi
+
+echo "=== STEP 5: Waiting for Connect API ==="
+for i in {1..60}; do
+  if curl -s http://localhost:8083/ > /dev/null 2>&1; then
+    echo "✅ Connect API is ready after ${i} attempts!"
+    break
+  fi
+  if [ $i -eq 60 ]; then
+    echo "❌ Connect API failed to start!"
+    docker logs connect --tail 100
+    exit 1
+  fi
+  echo "Attempt $i/60..."
+  sleep 2
+done
+
+echo "=== STEP 6: Container Status ==="
+docker ps
+
+echo "=== STEP 7: Creating Debezium Connector ==="
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+  -H "Accept: application/json" \
+  -H "Content-Type: application/json" \
+  localhost:8083/connectors/ -d '{
+  "name": "stream1",
+  "config": {
+    "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+    "tasks.max": "1",
+    "database.hostname": "192.169.0.215",
+    "database.port": "3306",
+    "database.user": "datascience_readonly",
+    "database.password": "vhdTQX1QiBXwY2XdpiEJoeysM0P5k8",
+    "database.server.id": "10001",
+    "topic.prefix": "datasync",
+    "database.include.list": "_54a253e90fa4f239",
+    "table.include.list": "_54a253e90fa4f239.tabVehicle Inspection Assignment,_54a253e90fa4f239.tabItem Price,_54a253e90fa4f239.tabItem",
+    "schema.history.internal.kafka.bootstrap.servers": "kafka:9092",
+    "schema.history.internal.kafka.topic": "schemahistory.erpx_schema_history",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "true",
+    "value.converter.schemas.enable": "true",
+    "include.schema.changes": "true",
+    "connector.adapter": "mariadb",
+    "database.history.skip.unparseable.ddl": "true"
+  }
+}')
+
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+
+echo "HTTP Response Code: $HTTP_CODE"
+echo "Response Body: $BODY"
+
+if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "200" ]; then
+  echo "❌ Failed to create connector! HTTP $HTTP_CODE"
+  exit 1
+fi
+
+echo "✅ Connector created successfully!"
+sleep 10
+
+echo "=== STEP 8: Verifying Connector Status ==="
+curl -s http://localhost:8083/connectors/stream1/status || echo "Could not get connector status"
+
+echo "=== STEP 9: Restarting Application Services ==="
+sudo systemctl restart sales_price_streaming.service
+sleep 5
+
+sudo systemctl restart erp_metax_streaming.service
+sleep 5
+
+sudo systemctl restart erp_dmx_streaming.service
+sleep 5
+
+sudo systemctl restart erp_dmx_celery.service
+sleep 5
+
+echo "=== STEP 10: Service Status Check ==="
+sudo systemctl status sales_price_streaming.service --no-pager
+sudo systemctl status erp_metax_streaming.service --no-pager
+sudo systemctl status erp_dmx_streaming.service --no-pager
+sudo systemctl status erp_dmx_celery.service --no-pager
+
+echo "=== STEP 11: Final Verification ==="
+docker ps
+echo ""
+echo "✅✅✅ DEPLOYMENT COMPLETE ✅✅✅"
+
+EOSSH
